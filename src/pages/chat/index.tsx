@@ -63,7 +63,9 @@ const ChatPage = () => {
         const res = await Network.request({
           url: '/api/agent/critique',
           method: 'POST',
-          data: { articleUrl: input.trim() },
+          data: isUrl
+            ? { url: input.trim() }
+            : { content: input.trim(), title: '用户提交的文章' },
         });
         console.log('锐评结果:', res.data);
 

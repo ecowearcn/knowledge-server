@@ -21,7 +21,9 @@ export interface ChatRequest {
 }
 
 export interface CritiqueRequest {
-  url: string;
+  url?: string;
+  content?: string;
+  title?: string;
   knowledge_base_ids?: string[];
 }
 
@@ -116,19 +118,26 @@ ${knowledgeContent ? `相关知识库内容：\n${knowledgeContent}\n\n请基于
 
   // 锐评文章
   async critique(request: CritiqueRequest): Promise<CritiqueResult> {
-    const { url, knowledge_base_ids } = request;
+    const { url, content, title, knowledge_base_ids } = request;
 
-    // 1. 解析待评文章
-    const fetchResponse = await this.fetchClient.fetch(url);
-    if (fetchResponse.status_code !== 0) {
-      throw new Error(`解析文章失败: ${fetchResponse.status_message}`);
+    let articleTitle = title || '未知标题';
+    let articleContent = content || '';
+
+    // 1. 如果提供了 URL，尝试解析文章
+    if (url && !content) {
+      const fetchResponse = await this.fetchClient.fetch(url);
+      if (fetchResponse.status_code === 0) {
+        articleTitle = fetchResponse.title || articleTitle;
+        articleContent = fetchResponse.content
+          .filter((item) => item.type === 'text')
+          .map((item) => item.text)
+          .join('\n');
+      }
     }
 
-    const articleTitle = fetchResponse.title || '未知标题';
-    const articleContent = fetchResponse.content
-      .filter((item) => item.type === 'text')
-      .map((item) => item.text)
-      .join('\n');
+    if (!articleContent) {
+      throw new Error('请提供文章内容或有效的文章链接');
+    }
 
     // 2. 从知识库检索相关内容
     const searchQuery = `${articleTitle}\n\n${articleContent.substring(0, 2000)}`;
