@@ -1,11 +1,14 @@
 export default defineAppConfig({
   pages: [
-    'pages/index/index'
+    'pages/index/index',
+    'pages/chat/index',
+    'pages/knowledge-base/index',
+    'pages/import/index'
   ],
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',
-    navigationBarTitleText: 'WeChat',
+    navigationBarTitleText: '知识库',
     navigationBarTextStyle: 'black'
   }
 })
