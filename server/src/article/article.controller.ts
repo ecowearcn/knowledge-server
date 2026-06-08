@@ -46,9 +46,6 @@ export class ArticleController {
     return { code: 0, msg: 'success', data: result };
   }
 
-  @Get('search')
-  async search(
-
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const result = await this.service.findOne(id);
@@ -64,12 +61,6 @@ export class ArticleController {
       ? knowledgeBaseIds.split(',').filter(Boolean)
       : undefined;
     const result = await this.service.search(query, ids);
-    return { code: 0, msg: 'success', data: result };
-  }
-
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const result = await this.service.findOne(id);
     return { code: 0, msg: 'success', data: result };
   }
 

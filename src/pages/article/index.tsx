@@ -5,7 +5,6 @@ import { Network } from '@/network';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
 import { Calendar, User, Tag, BookOpen } from 'lucide-react-taro';
 
 interface Article {

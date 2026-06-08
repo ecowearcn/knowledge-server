@@ -291,21 +291,6 @@ ${content.substring(0, 8000)}`;
     return data as Article[];
   }
 
-  // 获取单个文章
-  async findOne(id: string): Promise<Article | null> {
-    const { data, error } = await supabase
-      .from('articles')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (error) {
-      throw new Error(`获取文章失败: ${error.message}`);
-    }
-
-    return data as Article | null;
-  }
-
   // 删除文章
   async remove(id: string): Promise<void> {
     const { error } = await supabase.from('articles').delete().eq('id', id);
