@@ -144,7 +144,15 @@ const KnowledgeBasePage = () => {
         ) : (
           <View className="space-y-3">
             {articles.map((article) => (
-              <Card key={article.id}>
+              <Card 
+                key={article.id}
+                className="cursor-pointer active:bg-gray-50"
+                onClick={() => {
+                  Taro.navigateTo({
+                    url: `/pages/article/index?id=${article.id}`,
+                  });
+                }}
+              >
                 <CardHeader className="pb-2">
                   <View className="flex flex-row items-start justify-between">
                     <CardTitle className="text-base flex-1 line-clamp-2">
@@ -154,7 +162,10 @@ const KnowledgeBasePage = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openArticle(article.source_url!)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openArticle(article.source_url!);
+                        }}
                       >
                         <ExternalLink size={16} color="#666" />
                       </Button>

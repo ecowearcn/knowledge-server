@@ -238,6 +238,21 @@ ${content.substring(0, 8000)}`;
     return data as Article[];
   }
 
+  // 获取单篇文章
+  async findOne(id: string): Promise<Article | null> {
+    const { data, error } = await supabase
+      .from('articles')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      throw new Error(`获取文章详情失败: ${error.message}`);
+    }
+
+    return data as Article;
+  }
+
   // 获取所有文章
   async findAll(): Promise<ArticleWithSummary[]> {
     const { data, error } = await supabase

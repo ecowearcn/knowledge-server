@@ -48,6 +48,15 @@ export class ArticleController {
 
   @Get('search')
   async search(
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const result = await this.service.findOne(id);
+    return { code: 0, msg: 'success', data: result };
+  }
+
+  @Get('search')
+  async search(
     @Query('q') query: string,
     @Query('knowledge_base_ids') knowledgeBaseIds?: string,
   ) {
