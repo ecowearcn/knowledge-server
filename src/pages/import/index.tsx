@@ -59,6 +59,23 @@ const ImportPage = () => {
       Taro.showToast({ title: '请输入文章链接', icon: 'none' });
       return;
     }
+    
+    // 检测公众号链接
+    if (importType === 'url' && articleUrl.includes('mp.weixin.qq.com')) {
+      Taro.showModal({
+        title: '提示',
+        content: '微信公众号禁止直接抓取，请切换到「手动粘贴」模式：\n1. 复制公众号文章正文\n2. 点击「手动粘贴」\n3. 粘贴内容并导入',
+        confirmText: '切换模式',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            setImportType('manual');
+          }
+        }
+      });
+      return;
+    }
+    
     if (importType === 'manual' && !manualContent.trim()) {
       Taro.showToast({ title: '请输入文章内容', icon: 'none' });
       return;
