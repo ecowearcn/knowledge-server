@@ -1,12 +1,23 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from '@/app.controller';
 import { AppService } from '@/app.service';
 import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 import { ArticleModule } from './article/article.module';
 import { AgentModule } from './agent/agent.module';
+import { WechatCustomerModule } from './wechat-customer/wechat-customer.module';
 
 @Module({
-  imports: [KnowledgeBaseModule, ArticleModule, AgentModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+    KnowledgeBaseModule,
+    ArticleModule,
+    AgentModule,
+    WechatCustomerModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
