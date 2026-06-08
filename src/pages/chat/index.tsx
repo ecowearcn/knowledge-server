@@ -93,7 +93,7 @@ const ChatPage = () => {
           const assistantMessage: Message = {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
-            content: res.data.data?.response || '抱歉，我暂时无法回答这个问题。',
+            content: res.data.data || '抱歉，我暂时无法回答这个问题。',
           };
           setMessages((prev) => [...prev, assistantMessage]);
         } else {
