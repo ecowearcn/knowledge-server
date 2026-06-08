@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { getSupabaseClient } from '../storage/database/supabase-client';
-import { FetchClient, Config as FetchConfig } from 'coze-coding-dev-sdk';
+import {
+  FetchClient,
+  Config as FetchConfig,
+  HeaderUtils,
+} from 'coze-coding-dev-sdk';
 import { LLMClient, Config as LLMConfig } from 'coze-coding-dev-sdk';
 import {
   KnowledgeClient,
@@ -14,7 +18,7 @@ const supabase = getSupabaseClient();
 export interface Article {
   id: string;
   knowledge_base_id: string;
-  title: string;
+  name: string; // 数据库字段名是 name
   content: string | null;
   summary: string | null;
   key_paragraphs: string[] | null;
@@ -45,24 +49,29 @@ export interface ArticleWithSummary extends Article {
 
 @Injectable()
 export class ArticleService {
-  private fetchClient: FetchClient;
   private llmClient: LLMClient;
   private knowledgeClient: KnowledgeClient;
 
   constructor() {
-    this.fetchClient = new FetchClient(new FetchConfig());
     this.llmClient = new LLMClient(new LLMConfig());
     this.knowledgeClient = new KnowledgeClient(new KnowledgeConfig());
   }
 
   // 解析文章 URL
-  private async parseArticle(url: string): Promise<{
+  private async parseArticle(
+    url: string,
+    headers: Record<string, string>,
+  ): Promise<{
     title: string;
     content: string;
     author?: string;
     publishedAt?: string;
   }> {
-    const response = await this.fetchClient.fetch(url);
+    const customHeaders = HeaderUtils.extractForwardHeaders(headers);
+    const fetchClient = new FetchClient(new FetchConfig(), customHeaders);
+    console.log('调用 fetch-url:', url);
+    const response = await fetchClient.fetch(url);
+    console.log('fetch-url 响应:', JSON.stringify(response, null, 2));
 
     if (response.status_code !== 0) {
       throw new Error(`解析文章失败: ${response.status_message}`);
@@ -129,13 +138,28 @@ ${content.substring(0, 8000)}`;
     };
   }
 
-  // 创建文章（从URL入库）
-  async createFromUrl(dto: CreateArticleDto): Promise<Article> {
-    console.log('开始解析文章:', dto.source_url);
+  // 创建文章（从URL入库或手动内容）
+  async createFromUrl(
+    dto: CreateArticleDto,
+    headers: Record<string, string>,
+    manualContent?: string,
+    manualTitle?: string,
+  ): Promise<Article> {
+    let parsed: { title: string; content: string; author?: string; publishedAt?: string };
 
-    // 1. 解析文章
-    const parsed = await this.parseArticle(dto.source_url);
-    console.log('文章解析完成:', parsed.title);
+    if (manualContent) {
+      // 使用手动粘贴的内容
+      console.log('使用手动粘贴的内容');
+      parsed = {
+        title: manualTitle || '手动导入文章',
+        content: manualContent,
+      };
+    } else {
+      // 从 URL 解析
+      console.log('开始解析文章:', dto.source_url);
+      parsed = await this.parseArticle(dto.source_url, headers);
+      console.log('文章解析完成:', parsed.title);
+    }
 
     // 2. 生成概要和标签
     const { summary, keyParagraphs, tags } = await this.generateSummary(
@@ -148,7 +172,7 @@ ${content.substring(0, 8000)}`;
       .from('articles')
       .insert({
         knowledge_base_id: dto.knowledge_base_id,
-        title: parsed.title,
+        name: parsed.title, // 数据库字段名是 name
         content: parsed.content,
         summary,
         key_paragraphs: keyParagraphs,

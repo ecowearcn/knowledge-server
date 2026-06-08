@@ -8,7 +8,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ArticleService, CreateArticleDto } from './article.service';
 
 @Controller('articles')
@@ -17,8 +19,22 @@ export class ArticleController {
 
   @Post('import')
   @HttpCode(HttpStatus.OK)
-  async importFromUrl(@Body() dto: CreateArticleDto) {
-    const result = await this.service.createFromUrl(dto);
+  async importFromUrl(
+    @Body()
+    body: {
+      url?: string;
+      content?: string; // 手动粘贴的内容
+      title?: string; // 手动输入的标题
+      knowledgeBaseId: string;
+    },
+    @Req() req: Request,
+  ) {
+    const headers = req.headers as Record<string, string>;
+    const dto: CreateArticleDto = {
+      source_url: body.url || '',
+      knowledge_base_id: body.knowledgeBaseId,
+    };
+    const result = await this.service.createFromUrl(dto, headers, body.content, body.title);
     return { code: 0, msg: 'success', data: result };
   }
 
