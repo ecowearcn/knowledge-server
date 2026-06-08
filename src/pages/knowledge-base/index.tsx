@@ -11,7 +11,7 @@ import { Calendar, Tag, ExternalLink } from 'lucide-react-taro';
 
 interface Article {
   id: string;
-  title: string;
+  name: string; // 数据库字段是 name 不是 title
   summary: string | null;
   tags: string[] | null;
   source_url: string | null;
@@ -49,7 +49,7 @@ const KnowledgeBasePage = () => {
 
       // 获取文章列表
       const res = await Network.request({
-        url: `/api/articles/knowledge-base/${kbId}`,
+        url: `/api/articles?knowledge_base_id=${kbId}`,
       });
       console.log('文章列表:', res.data);
       if (res.data?.code === 0) {
@@ -148,7 +148,7 @@ const KnowledgeBasePage = () => {
                 <CardHeader className="pb-2">
                   <View className="flex flex-row items-start justify-between">
                     <CardTitle className="text-base flex-1 line-clamp-2">
-                      {article.title}
+                      {article.name}
                     </CardTitle>
                     {article.source_url && (
                       <Button
