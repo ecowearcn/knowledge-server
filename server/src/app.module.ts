@@ -6,6 +6,7 @@ import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 import { ArticleModule } from './article/article.module';
 import { AgentModule } from './agent/agent.module';
 import { WechatCustomerModule } from './wechat-customer/wechat-customer.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { WechatCustomerModule } from './wechat-customer/wechat-customer.module';
     ArticleModule,
     AgentModule,
     WechatCustomerModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],

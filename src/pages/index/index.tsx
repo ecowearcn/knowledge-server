@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MessageCircle, BookOpen, Plus, Library } from 'lucide-react-taro';
+import { MessageCircle, BookOpen, Plus, Library, Settings } from 'lucide-react-taro';
 
 interface KnowledgeBase {
   id: string;
@@ -17,13 +17,63 @@ interface KnowledgeBase {
   created_at: string;
 }
 
+interface User {
+  id: string;
+  openid: string;
+  nickname: string | null;
+  avatar: string | null;
+  role: 'admin' | 'member' | 'user';
+}
+
+// 全局用户状态（简单实现，后续可升级为 context）
+let globalUser: User | null = null;
+
+export const getCurrentUser = () => globalUser;
+
 const IndexPage = () => {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
 
   useDidShow(() => {
+    fetchUser();
     fetchKnowledgeBases();
   });
+
+  // 获取用户身份
+  const fetchUser = async () => {
+    setUserLoading(true);
+    try {
+      // 尝试获取存储的 openid
+      let openid = Taro.getStorageSync('user_openid');
+      
+      // 如果没有，生成一个临时 openid（基于设备）
+      if (!openid) {
+        // 在小程序环境，使用设备信息生成唯一标识
+        await Taro.getSystemInfo();
+        openid = `device_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        Taro.setStorageSync('user_openid', openid);
+      }
+
+      // 调用后端获取/创建用户
+      const res = await Network.request({
+        url: '/api/user/info',
+        data: { openid }
+      });
+      console.log('用户信息:', res.data);
+      
+      if (res.data?.code === 0) {
+        const userData = res.data.data;
+        globalUser = userData;
+        setUser(userData);
+      }
+    } catch (err) {
+      console.error('获取用户失败:', err);
+    } finally {
+      setUserLoading(false);
+    }
+  };
 
   const fetchKnowledgeBases = async () => {
     setLoading(true);
@@ -52,11 +102,40 @@ const IndexPage = () => {
     Taro.navigateTo({ url: '/pages/import/index' });
   };
 
+  const goToAdmin = () => {
+    Taro.navigateTo({ url: '/pages/admin/index' });
+  };
+
+  const isAdmin = user?.role === 'admin';
+  const isMember = user?.role === 'admin' || user?.role === 'member';
+
   const officialBases = knowledgeBases.filter((kb) => kb.type === 'official');
   const memberBases = knowledgeBases.filter((kb) => kb.type === 'member');
 
   return (
     <View className="min-h-screen bg-gray-50 p-4">
+      {/* 用户状态栏 */}
+      <View className="mb-4">
+        {userLoading ? (
+          <Skeleton className="h-8 rounded-lg" />
+        ) : (
+          <View className="flex flex-row items-center justify-between">
+            <View className="flex flex-row items-center gap-2">
+              <Text className="text-sm text-gray-600">
+                {user?.nickname || '游客'}
+              </Text>
+              {isAdmin && <Badge variant="default">管理员</Badge>}
+              {isMember && !isAdmin && <Badge variant="secondary">成员</Badge>}
+            </View>
+            {isAdmin && (
+              <Button variant="ghost" size="sm" onClick={goToAdmin}>
+                <Settings size={16} color="#666" />
+              </Button>
+            )}
+          </View>
+        )}
+      </View>
+
       {/* 快捷入口 */}
       <View className="mb-6">
         <View className="flex flex-row gap-3 mb-4">

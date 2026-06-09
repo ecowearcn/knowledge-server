@@ -76,6 +76,20 @@ export const articles = pgTable("articles", {
 		}).onDelete("cascade"),
 ]);
 
+// 用户表：存储用户身份和角色
+export const users = pgTable("users", {
+	id: varchar({ length: 36 }).default(gen_random_uuid()).primaryKey().notNull(),
+	openid: varchar({ length: 100 }).notNull().unique(),
+	nickname: varchar({ length: 255 }),
+	avatar: varchar({ length: 500 }),
+	role: varchar({ length: 20 }).default('user').notNull(), // 'admin' | 'member' | 'user'
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("users_openid_idx").using("btree", table.openid.asc().nullsLast().op("text_ops")),
+	index("users_role_idx").using("btree", table.role.asc().nullsLast().op("text_ops")),
+]);
+
 export const userKnowledgeConfigs = pgTable("user_knowledge_configs", {
 	id: varchar({ length: 36 }).default(gen_random_uuid()).primaryKey().notNull(),
 	userId: varchar("user_id", { length: 36 }).notNull(),

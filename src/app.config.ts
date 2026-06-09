@@ -4,7 +4,8 @@ export default defineAppConfig({
     'pages/chat/index',
     'pages/knowledge-base/index',
     'pages/import/index',
-    'pages/article/index'
+    'pages/article/index',
+    'pages/admin/index'
   ],
   window: {
     backgroundTextStyle: 'light',

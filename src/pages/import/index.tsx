@@ -195,7 +195,7 @@ const ImportPage = () => {
                 </Button>
               </View>
               <Text className="block text-xs text-gray-400 mt-1">
-                提示：公众号文章因平台限制，可能需要使用"手动粘贴"方式
+                提示：公众号文章因平台限制，可能需要使用「手动粘贴」方式
               </Text>
             </View>
           )}
