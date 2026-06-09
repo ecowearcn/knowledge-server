@@ -64,6 +64,20 @@ export class ArticleController {
     return { code: 0, msg: 'success', data: result };
   }
 
+  /**
+   * 测试 URL 抓取（不入库，只返回内容）
+   */
+  @Post('fetch')
+  @HttpCode(HttpStatus.OK)
+  async fetchUrl(
+    @Body() body: { url: string },
+    @Req() req: Request,
+  ) {
+    const headers = req.headers as Record<string, string>;
+    const result = await this.service.fetchUrlContent(body.url, headers);
+    return { code: 0, msg: 'success', data: result };
+  }
+
   @Delete(':id')
   async remove(@Param('id') id: string) {
     await this.service.remove(id);

@@ -299,4 +299,34 @@ ${content.substring(0, 8000)}`;
       throw new Error(`删除文章失败: ${error.message}`);
     }
   }
+
+  // 仅抓取 URL 内容（不入库）
+  async fetchUrlContent(
+    url: string,
+    headers: Record<string, string>,
+  ): Promise<{
+    title: string;
+    content: string;
+    author?: string;
+    publishedAt?: string;
+    summary: string;
+    tags: string[];
+  }> {
+    // 1. 解析 URL
+    console.log('抓取 URL:', url);
+    const parsed = await this.parseArticle(url, headers);
+    console.log('抓取完成:', parsed.title, '内容长度:', parsed.content.length);
+
+    // 2. 生成概要
+    const { summary, tags } = await this.generateSummary(parsed.content);
+
+    return {
+      title: parsed.title,
+      content: parsed.content,
+      author: parsed.author,
+      publishedAt: parsed.publishedAt,
+      summary,
+      tags,
+    };
+  }
 }
