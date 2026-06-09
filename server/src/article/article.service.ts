@@ -12,6 +12,7 @@ import {
   KnowledgeDocument,
   DataSourceType,
 } from 'coze-coding-dev-sdk';
+import * as cheerio from 'cheerio';
 
 const supabase = getSupabaseClient();
 
@@ -57,6 +58,83 @@ export class ArticleService {
     this.knowledgeClient = new KnowledgeClient(new KnowledgeConfig());
   }
 
+  // 直接抓取公众号文章（绕过 robots 限制）
+  private async fetchWechatArticle(url: string): Promise<{
+    title: string;
+    content: string;
+    author?: string;
+  } | null> {
+    try {
+      console.log('[抓取公众号] 开始抓取:', url);
+      
+      // 使用动态 import 避免编译问题
+      const axios = (await import('axios')).default;
+      
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Referer': 'https://mp.weixin.qq.com/',
+        },
+        timeout: 30000,
+      });
+
+      const html = response.data;
+      const $ = cheerio.load(html);
+
+      // 提取标题
+      const title = $('#activity-name').text().trim() || 
+                    $('.rich_media_title').text().trim() ||
+                    $('h1.rich_media_title').text().trim() ||
+                    '未知标题';
+
+      // 提取作者
+      const author = $('#js_name').text().trim() ||
+                     $('.rich_media_meta_text').text().trim() ||
+                     undefined;
+
+      // 提取正文内容
+      const contentElement = $('#js_content').length > 0 
+        ? $('#js_content') 
+        : $('.rich_media_content').length > 0 
+          ? $('.rich_media_content')
+          : $('article');
+
+      // 移除不需要的元素
+      contentElement.find('script, style, iframe, svg').remove();
+      
+      // 提取文本内容
+      let content = contentElement.text().trim();
+      
+      // 如果文本太少，尝试提取所有段落
+      if (content.length < 100) {
+        const paragraphs: string[] = [];
+        contentElement.find('p, section').each((_, el) => {
+          const text = $(el).text().trim();
+          if (text.length > 10) {
+            paragraphs.push(text);
+          }
+        });
+        content = paragraphs.join('\n\n');
+      }
+
+      console.log('[抓取公众号] 成功:', { title, author, contentLength: content.length });
+
+      if (content.length < 50) {
+        console.log('[抓取公众号] 内容太少，可能解析失败');
+        return null;
+      }
+
+      return { title, content, author };
+    } catch (error: any) {
+      console.error('[抓取公众号] 失败:', error.message);
+      return null;
+    }
+  }
+
   // 解析文章 URL
   private async parseArticle(
     url: string,
@@ -67,6 +145,17 @@ export class ArticleService {
     author?: string;
     publishedAt?: string;
   }> {
+    // 如果是公众号文章，先尝试直接抓取
+    if (url.includes('mp.weixin.qq.com')) {
+      console.log('[解析] 检测到公众号文章，尝试直接抓取');
+      const wechatResult = await this.fetchWechatArticle(url);
+      if (wechatResult) {
+        return wechatResult;
+      }
+      console.log('[解析] 直接抓取失败，尝试 fetch-url');
+    }
+
+    // 使用 fetch-url 作为备选
     const customHeaders = HeaderUtils.extractForwardHeaders(headers);
     const fetchClient = new FetchClient(new FetchConfig(), customHeaders);
     console.log('调用 fetch-url:', url);
