@@ -54,6 +54,9 @@ export class WechatCustomerService implements OnModuleInit {
 
   /**
    * 验证回调 URL
+   * 
+   * 企业微信客服回调签名算法（msg_signature）：
+   * 将 token、timestamp、nonce、echostr 四个参数排序拼接，进行 SHA1 加密
    */
   async verifyCallback(
     msgSignature: string,
@@ -61,14 +64,29 @@ export class WechatCustomerService implements OnModuleInit {
     nonce: string,
     echostr: string,
   ): Promise<string> {
-    // 验证签名
-    const signature = this.generateSignature(this.config.token, timestamp, nonce);
+    console.log('[企业微信客服] 开始验证签名...');
+    
+    // 企业微信客服回调签名算法：包含 echostr
+    const signature = this.generateSignatureWithEchostr(
+      this.config.token, 
+      timestamp, 
+      nonce, 
+      echostr
+    );
+    
+    console.log('[企业微信客服] 签名对比:', {
+      computed: signature,
+      received: msgSignature,
+      match: signature === msgSignature,
+    });
+    
     if (signature !== msgSignature) {
       throw new Error('签名验证失败');
     }
 
     // 解密 echostr
     if (this.config.encodingAESKey) {
+      console.log('[企业微信客服] 开始解密 echostr...');
       return this.decrypt(echostr);
     }
     return echostr;
@@ -253,11 +271,30 @@ ${result.relatedArticles?.length > 0
   }
 
   /**
-   * 生成签名
+   * 生成签名（普通模式，不包含 echostr）
    */
   private generateSignature(token: string, timestamp: string, nonce: string): string {
     const arr = [token, timestamp, nonce].sort();
     const str = arr.join('');
+    return createHash('sha1').update(str).digest('hex');
+  }
+
+  /**
+   * 生成签名（企业微信客服回调模式，包含 echostr）
+   * msg_signature = SHA1(sort(token、timestamp、nonce、echostr))
+   */
+  private generateSignatureWithEchostr(
+    token: string, 
+    timestamp: string, 
+    nonce: string, 
+    echostr: string
+  ): string {
+    const arr = [token, timestamp, nonce, echostr].sort();
+    const str = arr.join('');
+    console.log('[企业微信客服] 签名计算:', {
+      sortedArr: arr,
+      joinedStr: str.slice(0, 50) + '...',
+    });
     return createHash('sha1').update(str).digest('hex');
   }
 
