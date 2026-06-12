@@ -20,6 +20,11 @@ interface CustomerMessage {
   MsgId?: string;
   PicUrl?: string;       // 图片 URL
   MediaId?: string;
+  // 外部联系人消息额外字段
+  Event?: string;        // 事件类型
+  ChangeType?: string;   // 变更类型
+  ExternalUserID?: string; // 外部联系人ID（微信好友）
+  UserID?: string;       // 企业成员ID（员工账号）
 }
 
 @Injectable()
@@ -93,7 +98,7 @@ export class WechatCustomerService implements OnModuleInit {
   }
 
   /**
-   * 处理收到的消息
+   * 处理收到的消息（同时支持客服消息和外部联系人消息）
    */
   async handleMessage(
     msgSignature: string,
@@ -106,11 +111,18 @@ export class WechatCustomerService implements OnModuleInit {
     const parsed = await this.parser.parseStringPromise(xmlStr);
     const message: CustomerMessage = parsed.xml;
 
-    console.log('[企业微信客服] 解析后的消息:', message);
+    console.log('[企业微信消息] 解析后的消息:', JSON.stringify(message, null, 2));
 
-    // 根据消息类型处理
-    const { MsgType, Content, FromUserName } = message;
+    // 判断消息类型：外部联系人消息 vs 客服消息
+    const { MsgType, Event, ChangeType, Content, FromUserName, ExternalUserID, UserID } = message;
 
+    // 外部联系人相关事件/消息（微信好友发给员工账号）
+    if (ChangeType || ExternalUserID || Event === 'add_external_contact' || Event === 'del_external_contact' || Event === 'msg_audit') {
+      console.log('[外部联系人消息] 收到外部联系人事件:', { Event, ChangeType, ExternalUserID, UserID });
+      return await this.handleExternalContactMessage(message);
+    }
+
+    // 微信客服消息（有 MsgType 和 Content）
     let reply = '';
 
     if (MsgType === 'text' && Content) {
@@ -136,6 +148,70 @@ export class WechatCustomerService implements OnModuleInit {
     await this.sendReply(FromUserName, reply);
     
     return reply;
+  }
+
+  /**
+   * 处理外部联系人消息（微信好友发给员工账号）
+   */
+  private async handleExternalContactMessage(message: CustomerMessage): Promise<string> {
+    const { Event, ChangeType, Content, ExternalUserID, UserID, MsgType } = message;
+
+    console.log('[外部联系人消息] 处理:', { Event, ChangeType, MsgType, Content, ExternalUserID, UserID });
+
+    // 添加好友事件
+    if (Event === 'add_external_contact') {
+      console.log('[外部联系人消息] 新好友添加:', ExternalUserID);
+      return 'success'; // 只记录，不回复
+    }
+
+    // 删除好友事件
+    if (Event === 'del_external_contact') {
+      console.log('[外部联系人消息] 好友删除:', ExternalUserID);
+      return 'success';
+    }
+
+    // 外部联系人发消息（微信好友发给员工）
+    if (MsgType === 'text' && Content) {
+      const userIdent = ExternalUserID || UserID || 'unknown';
+      console.log('[外部联系人消息] 收到文本消息:', Content.slice(0, 100));
+      
+      // 处理消息内容（和客服消息相同的逻辑）
+      let reply = '';
+      
+      if (this.isWechatArticleUrl(Content)) {
+        reply = await this.handleArticleImport(Content, userIdent);
+      } else if (Content.includes('锐评') || Content.includes('点评')) {
+        reply = await this.handleCritique(Content, userIdent);
+      } else if (Content.length > 200) {
+        reply = await this.handleArticleImport(Content, userIdent);
+      } else {
+        reply = await this.handleChat(Content, userIdent);
+      }
+
+      // 发送回复给外部联系人
+      // 注意：外部联系人消息需要用不同的API发送回复
+      if (ExternalUserID && UserID) {
+        await this.sendReplyToExternalContact(ExternalUserID, UserID, reply);
+      }
+      
+      return 'success';
+    }
+
+    return 'success';
+  }
+
+  /**
+   * 发送回复给外部联系人（微信好友）
+   */
+  private async sendReplyToExternalContact(externalUserID: string, userID: string, message: string): Promise<void> {
+    console.log('[外部联系人消息] 发送回复:', { externalUserID, userID, message: message.slice(0, 50) });
+    
+    // TODO: 调用企业微信外部联系人消息发送API
+    // 需要获取 access_token 并调用 https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg
+    // 或者使用应用消息发送接口
+    
+    // 暂时只打印日志，后续实现API调用
+    console.log('[外部联系人消息] 暂未实现主动发送回复，需要配置可信IP');
   }
 
   /**
