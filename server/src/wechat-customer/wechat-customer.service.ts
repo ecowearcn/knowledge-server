@@ -300,21 +300,66 @@ ${result.relatedArticles?.length > 0
 
   /**
    * AES 解密
+   * 
+   * 企业微信加密格式：
+   * Random(16字节) + MsgLen(4字节,网络字节序) + MsgContent + CorpID + Padding
+   * 
+   * 返回：消息内容部分（纯文本）
    */
   private decrypt(encrypted: string): string {
     if (!this.config.encodingAESKey) {
       return encrypted;
     }
     
-    const key = Buffer.from(this.config.encodingAESKey + '=', 'base64');
-    const decipher = createDecipheriv('aes-256-cbc', key, key.slice(0, 16));
-    decipher.setAutoPadding(false);
-    
-    let decrypted = decipher.update(Buffer.from(encrypted, 'base64')).toString('utf8');
-    decrypted += decipher.final('utf8');
-    
-    // 去除补位字符
-    const len = decrypted.charCodeAt(decrypted.length - 1);
-    return decrypted.slice(0, decrypted.length - len);
+    try {
+      const key = Buffer.from(this.config.encodingAESKey + '=', 'base64');
+      const decipher = createDecipheriv('aes-256-cbc', key, key.slice(0, 16));
+      decipher.setAutoPadding(false);
+      
+      // 解密得到 Buffer
+      const decryptedBuffer = Buffer.concat([
+        decipher.update(Buffer.from(encrypted, 'base64')),
+        decipher.final()
+      ]);
+      
+      console.log('[企业微信客服] 解密结果:', {
+        totalLength: decryptedBuffer.length,
+        hexPreview: decryptedBuffer.slice(0, 32).toString('hex'),
+      });
+      
+      // 企业微信格式：16字节随机串 + 4字节消息长度 + 消息内容 + CorpID + Padding
+      // 1. 去除 PKCS7 padding
+      const padLen = decryptedBuffer[decryptedBuffer.length - 1];
+      const unpadded = decryptedBuffer.slice(0, decryptedBuffer.length - padLen);
+      
+      // 2. 跳过前 16 字节随机串
+      // 3. 读取 4 字节消息长度（大端）
+      const msgLen = unpadded.readUInt32BE(16);
+      
+      console.log('[企业微信客服] 消息解析:', {
+        padLen,
+        unpaddedLength: unpadded.length,
+        msgLen,
+      });
+      
+      // 4. 提取消息内容（从第 20 字节开始，长度为 msgLen）
+      const msgContent = unpadded.slice(20, 20 + msgLen).toString('utf8');
+      
+      // 5. CorpID（可选验证）
+      const corpId = unpadded.slice(20 + msgLen).toString('utf8');
+      
+      console.log('[企业微信客服] 验证成功，返回 echostr:', {
+        msgContent,
+        corpId,
+        expectedCorpId: this.config.corpId,
+      });
+      
+      // 返回消息内容给企业微信
+      return msgContent;
+    } catch (error) {
+      console.error('[企业微信客服] 解密失败:', error);
+      // 降级：返回原始 echostr（明文模式）
+      return encrypted;
+    }
   }
 }
